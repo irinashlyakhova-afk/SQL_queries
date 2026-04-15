@@ -20,6 +20,20 @@ function parseModelJson(rawText) {
   return parsed;
 }
 
+/**
+ * Mermaid erDiagram не допускает запятые внутри объявления типа: decimal(10, 2) даёт
+ * ошибку парсера (ожидается имя атрибута, получена запятая). Упрощаем типы в скобках.
+ * Точные precision/scale остаются в sql_query.
+ */
+function sanitizeMermaidErCode(code) {
+  if (typeof code !== "string") {
+    return code;
+  }
+  return code
+    .replace(/\b(decimal|numeric)\s*\(\s*\d+\s*,\s*\d+\s*\)/gi, "$1")
+    .replace(/\b(double|float)\s*\(\s*\d+\s*,\s*\d+\s*\)/gi, "$1");
+}
+
 function buildSystemPrompt() {
   return [
     "Ты - архитектор БД и SQL-аналитик.",
@@ -33,9 +47,19 @@ function buildSystemPrompt() {
     "}",
     "Требования:",
     "1) mermaid_code должен начинаться с erDiagram.",
-    "2) sql_query должен быть синтаксически корректным SQL.",
-    "3) explanation - коротко и понятно на русском.",
-    "4) Никакого текста вне JSON."
+    "2) В блоках сущностей { ... } каждый атрибут — ОТДЕЛЬНОЙ строкой: СНАЧАЛА тип, ПОТОМ имя поля (латиница snake_case).",
+    "   Образец блока (переносы строк обязательны между атрибутами):",
+    "   ORDER {",
+    "     string order_id",
+    "     date order_date",
+    "     decimal total_amount",
+    "   }",
+    "   Запрещено: SQL-стиль «имя_поля тип(10, 2)», несколько полей в одной строке, скобки и запятые в типах (decimal(10,2) ломает парсер Mermaid).",
+    "   Для диаграммы используй простые типы без параметров: string, int, bigint, float, decimal, date, datetime, bool.",
+    "   Точные типы с длиной/precision укажи ТОЛЬКО в sql_query (CREATE TABLE и т.д.).",
+    "3) sql_query должен быть синтаксически корректным SQL.",
+    "4) explanation - коротко и понятно на русском.",
+    "5) Никакого текста вне JSON."
   ].join("\n");
 }
 
@@ -111,6 +135,9 @@ exports.handler = async (event) => {
 
     const responseText = result.response.text();
     const parsed = parseModelJson(responseText);
+    if (typeof parsed.mermaid_code === "string") {
+      parsed.mermaid_code = sanitizeMermaidErCode(parsed.mermaid_code);
+    }
 
     return {
       statusCode: 200,

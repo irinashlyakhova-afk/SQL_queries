@@ -120,12 +120,26 @@ function setLoadingState(isLoading) {
 }
 
 /**
+ * Убирает из erDiagram конструкции вида decimal(10, 2): запятая в скобках ломает парсер Mermaid.
+ * Совпадает с логикой в netlify/functions/generate.js.
+ */
+function sanitizeMermaidErCode(code) {
+  if (typeof code !== "string") {
+    return code;
+  }
+  return code
+    .replace(/\b(decimal|numeric)\s*\(\s*\d+\s*,\s*\d+\s*\)/gi, "$1")
+    .replace(/\b(double|float)\s*\(\s*\d+\s*,\s*\d+\s*\)/gi, "$1");
+}
+
+/**
  * Выполняет рендер Mermaid-диаграммы в контейнере результата.
  * @param {string} mermaidCode - Mermaid-код ER-диаграммы.
  */
 async function renderDiagram(mermaidCode) {
   const chartId = `erDiagram-${Date.now()}`;
-  dom.diagramContainer.innerHTML = `<div class="mermaid" id="${chartId}">${mermaidCode}</div>`;
+  const safeCode = sanitizeMermaidErCode(mermaidCode);
+  dom.diagramContainer.innerHTML = `<div class="mermaid" id="${chartId}">${safeCode}</div>`;
   await mermaid.run({
     querySelector: `#${chartId}`
   });

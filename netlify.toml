@@ -1,10 +1,13 @@
 [build]
+  command = ""
   publish = "public"
   functions = "netlify/functions"
 
-[dev]
-  publish = "public"
-  framework = "#static"
-
 [functions]
   included_files = ["config.json"]
+
+[dev]
+  # Настройки для локального запуска через 'npx netlify dev'
+  publish = "public"
+  port = 8888
+  targetPort = 8888

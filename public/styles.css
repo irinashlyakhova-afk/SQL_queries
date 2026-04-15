@@ -70,3 +70,49 @@ body {
   max-height: 300px;
   overflow: auto;
 }
+
+.notification {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 50;
+  max-width: min(22rem, calc(100vw - 2.5rem));
+  padding: 0.875rem 1.125rem;
+  border-radius: 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  border: 1px solid transparent;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.notification--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.5rem);
+}
+
+.notification:not(.notification--hidden) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notification--error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.notification--success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.notification__text {
+  display: block;
+}
+
+.btn-premium.btn-premium--loading {
+  cursor: wait;
+}

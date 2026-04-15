@@ -7,13 +7,59 @@ const dom = {
   generateBtn: document.getElementById("generateBtn"),
   diagramContainer: document.getElementById("diagramContainer"),
   sqlOutput: document.getElementById("sqlOutput"),
-  explanationOutput: document.getElementById("explanationOutput")
+  explanationOutput: document.getElementById("explanationOutput"),
+  notification: document.getElementById("notification"),
+  notificationText: document.querySelector("#notification .notification__text")
 };
+
+const DEFAULT_GENERATE_LABEL = "Сгенерировать";
 
 let appConfig = {
   defaultTemperature: 0.3,
   models: ["gemini-2.5-flash", "gemini-2.5-pro"]
 };
+
+let notificationHideTimer = null;
+
+/**
+ * Скрывает всплывающее уведомление.
+ */
+function hideNotification() {
+  if (notificationHideTimer) {
+    clearTimeout(notificationHideTimer);
+    notificationHideTimer = null;
+  }
+  dom.notification.classList.add("notification--hidden");
+  dom.notification.setAttribute("aria-hidden", "true");
+}
+
+/**
+ * Показывает всплывающее уведомление снизу справа.
+ * @param {string} message - Текст сообщения.
+ * @param {"error"|"success"} type - Тип: ошибка (красный) или успех (зелёный).
+ */
+function showNotification(message, type) {
+  if (notificationHideTimer) {
+    clearTimeout(notificationHideTimer);
+    notificationHideTimer = null;
+  }
+
+  dom.notificationText.textContent = message;
+  dom.notification.classList.remove(
+    "notification--hidden",
+    "notification--error",
+    "notification--success"
+  );
+  dom.notification.classList.add(
+    type === "success" ? "notification--success" : "notification--error"
+  );
+  dom.notification.setAttribute("aria-hidden", "false");
+
+  const autoHideMs = type === "success" ? 3500 : 6000;
+  notificationHideTimer = setTimeout(() => {
+    hideNotification();
+  }, autoHideMs);
+}
 
 /**
  * Загружает конфигурацию приложения из config.json.
@@ -57,8 +103,6 @@ function initializeControls() {
 
 /**
  * Обновляет текстовый индикатор температуры рядом со слайдером.
- * Функция вызывается при инициализации и при каждом движении ползунка,
- * чтобы пользователь мгновенно видел фактическое значение генерации.
  * @param {number|string} value - Текущее значение слайдера температуры.
  */
 function updateTemperatureLabel(value) {
@@ -66,20 +110,17 @@ function updateTemperatureLabel(value) {
 }
 
 /**
- * Переключает визуальное состояние загрузки для кнопки и бейджа.
- * Это помогает пользователю понять, что генерация уже выполняется
- * и предотвращает повторные нажатия на кнопку в процессе запроса.
+ * Состояние загрузки кнопки: блокировка и текст «Генерирую...».
  * @param {boolean} isLoading - Флаг активного запроса.
  */
 function setLoadingState(isLoading) {
   dom.generateBtn.disabled = isLoading;
-  dom.generateBtn.textContent = isLoading ? "Генерация..." : "Сгенерировать";
+  dom.generateBtn.textContent = isLoading ? "Генерирую..." : DEFAULT_GENERATE_LABEL;
+  dom.generateBtn.classList.toggle("btn-premium--loading", isLoading);
 }
 
 /**
  * Выполняет рендер Mermaid-диаграммы в контейнере результата.
- * Перед рендером очищает предыдущую диаграмму и создает уникальный id,
- * чтобы Mermaid корректно инициализировал новый SVG.
  * @param {string} mermaidCode - Mermaid-код ER-диаграммы.
  */
 async function renderDiagram(mermaidCode) {
@@ -91,43 +132,68 @@ async function renderDiagram(mermaidCode) {
 }
 
 /**
- * Выполняет вызов серверной Netlify Function и возвращает JSON-результат.
- * На вход принимает текст запроса, температуру и выбранную модель,
- * а затем отправляет их в backend для генерации структуры БД и SQL.
- * @param {string} prompt - Пользовательский текстовый запрос.
- * @param {string} accessCode - Код доступа для проверки на backend.
- * @param {number} temperature - Значение температуры генерации.
- * @param {string} model - Идентификатор выбранной Gemini-модели.
- * @returns {Promise<{mermaid_code: string, sql_query: string, explanation: string}>}
+ * Парсит тело ошибки ответа и возвращает строку для пользователя.
+ * @param {string} rawText - Сырой текст ответа.
  */
-async function requestGeneration(prompt, accessCode, temperature, model) {
-  const response = await fetch("/.netlify/functions/generate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-access-code": accessCode
-    },
-    body: JSON.stringify({
-      accessCode,
-      prompt,
-      temperature,
-      model
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Ошибка вызова backend-функции");
+function parseServerErrorMessage(rawText) {
+  if (!rawText || !rawText.trim()) {
+    return "Ошибка сервера";
   }
-
-  return response.json();
+  try {
+    const body = JSON.parse(rawText);
+    const fromBody = body.details ?? body.error;
+    if (fromBody != null && String(fromBody).trim()) {
+      return String(fromBody);
+    }
+  } catch {
+    /* не JSON */
+  }
+  return rawText.trim();
 }
 
 /**
- * Обрабатывает клик по кнопке "Сгенерировать":
- * валидирует ввод, отправляет запрос к backend,
- * обновляет диаграмму, SQL и текстовое пояснение.
- * При ошибках показывает понятное сообщение в интерфейсе.
+ * Вызов Netlify Function; при ошибках выбрасывает Error с понятным message.
+ * @returns {Promise<{mermaid_code: string, sql_query: string, explanation: string}>}
+ */
+async function requestGeneration(prompt, accessCode, temperature, model) {
+  let response;
+  try {
+    response = await fetch("/.netlify/functions/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-code": accessCode
+      },
+      body: JSON.stringify({
+        accessCode,
+        prompt,
+        temperature,
+        model
+      })
+    });
+  } catch {
+    throw new Error("Ошибка соединения с сервером");
+  }
+
+  if (response.status === 401) {
+    throw new Error("Неверный код доступа");
+  }
+
+  if (response.ok) {
+    return response.json();
+  }
+
+  const errorText = await response.text();
+
+  if (response.status === 400 || response.status === 500) {
+    throw new Error(parseServerErrorMessage(errorText));
+  }
+
+  throw new Error(parseServerErrorMessage(errorText));
+}
+
+/**
+ * Обрабатывает клик по кнопке «Сгенерировать».
  */
 async function handleGenerate() {
   const accessCode = dom.accessCodeInput.value.trim();
@@ -135,35 +201,37 @@ async function handleGenerate() {
   const temperature = parseFloat(dom.temperatureRange.value);
   const model = dom.modelSelect.value;
 
-  if (!accessCode) {
-    dom.explanationOutput.textContent = "Введите код доступа перед генерацией.";
-    return;
-  }
-
-  if (!prompt) {
-    dom.explanationOutput.textContent = "Введите текстовый запрос перед генерацией.";
+  if (!accessCode || !prompt) {
+    showNotification(
+      "Пожалуйста, заполните все поля и введите код доступа",
+      "error"
+    );
     return;
   }
 
   try {
     setLoadingState(true);
     const result = await requestGeneration(prompt, accessCode, temperature, model);
+
+    hideNotification();
+    showNotification("Результат успешно сгенерирован", "success");
+
     await renderDiagram(result.mermaid_code);
     dom.sqlOutput.textContent = result.sql_query;
     dom.explanationOutput.textContent = result.explanation;
   } catch (error) {
-    dom.diagramContainer.innerHTML = "<p class='text-red-300'>Не удалось отрисовать диаграмму.</p>";
+    showNotification(error.message || "Ошибка", "error");
+    dom.diagramContainer.innerHTML =
+      "<p class='text-red-600'>Не удалось сгенерировать диаграмму.</p>";
     dom.sqlOutput.textContent = "-- Ошибка генерации SQL";
-    dom.explanationOutput.textContent = `Причина: ${error.message}`;
+    dom.explanationOutput.textContent = "";
   } finally {
     setLoadingState(false);
   }
 }
 
 /**
- * Инициализирует приложение на странице:
- * включает Mermaid, загружает конфиг, настраивает контролы
- * и подписывает UI-обработчики на пользовательские действия.
+ * Инициализация приложения.
  */
 async function bootstrap() {
   mermaid.initialize({

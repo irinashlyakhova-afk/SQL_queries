@@ -1,0 +1,21 @@
+{
+  "name": "ai-sql-architect-netlify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fullstack JavaScript app with Netlify Functions and Gemini API",
+  "scripts": {
+    "dev": "netlify dev --framework=#static",
+    "dev:frontend": "serve public -l 8888",
+    "dev:functions": "netlify functions:serve",
+    "dev:netlify": "netlify dev --framework=#static",
+    "build": "echo \"Static build is ready for Netlify\"",
+    "start": "npm run dev"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1"
+  },
+  "devDependencies": {
+    "netlify-cli": "^24.11.2",
+    "serve": "^14.2.5"
+  }
+}

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI SQL Architect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              cream: "#F9FAFB",
+              milk: "#FFFFFF",
+              anthracite: "#2D2D2D",
+              accent: "#E98962"
+            },
+            boxShadow: {
+              premium: "0 12px 30px rgba(95, 76, 53, 0.12)"
+            }
+          }
+        }
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="bg-cream text-anthracite min-h-screen">
+    <main class="max-w-6xl mx-auto px-6 py-10">
+      <section class="card p-6 md:p-8 mb-8">
+        <h1 class="text-3xl md:text-4xl font-semibold mb-3">AI SQL Architect</h1>
+        <p class="text-anthracite/75 mb-8">
+          Опишите бизнес-задачу на естественном языке, а приложение сгенерирует ER-диаграмму, SQL и пояснение.
+        </p>
+
+        <div class="grid gap-6">
+          <div>
+            <label for="access-code" class="block text-sm font-medium mb-2">Код доступа</label>
+            <input
+              id="access-code"
+              type="password"
+              class="input-base w-full"
+              placeholder="Введите код доступа"
+              autocomplete="off"
+            />
+          </div>
+
+          <div>
+            <label for="promptInput" class="block text-sm font-medium mb-2">Текстовый запрос</label>
+            <textarea
+              id="promptInput"
+              class="input-base min-h-[120px] w-full"
+              placeholder="Например: показать всех клиентов, у которых > 3 заказов"
+            ></textarea>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label for="modelSelect" class="block text-sm font-medium mb-2">Модель</label>
+              <select id="modelSelect" class="input-base w-full"></select>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label for="temperatureRange" class="block text-sm font-medium">Температура</label>
+                <span id="temperatureValue" class="text-accent font-semibold">0.3</span>
+              </div>
+              <input
+                id="temperatureRange"
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value="0.3"
+                class="w-full accent-[#E98962]"
+              />
+            </div>
+          </div>
+
+          <button id="generateBtn" class="btn-premium">
+            Сгенерировать
+          </button>
+        </div>
+      </section>
+
+      <section class="grid lg:grid-cols-2 gap-8">
+        <article class="card p-6">
+          <div class="mb-4">
+            <h2 class="text-xl font-semibold">ER-диаграмма</h2>
+          </div>
+          <div id="diagramContainer" class="diagram-shell">
+            <p class="text-anthracite/60">
+              Здесь появится ER-диаграмма в формате Mermaid после генерации.
+            </p>
+          </div>
+        </article>
+
+        <article class="card p-6">
+          <h2 class="text-xl font-semibold mb-4">SQL-запрос</h2>
+          <pre id="sqlOutput" class="code-block">-- SQL появится после генерации</pre>
+
+          <h3 class="text-lg font-semibold mt-6 mb-3">Пояснение</h3>
+          <p id="explanationOutput" class="text-anthracite/80 leading-relaxed">
+            Пояснение логики будет показано здесь.
+          </p>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[dev]
+  publish = "public"
+  framework = "#static"
+
+[functions]
+  included_files = ["config.json"]
